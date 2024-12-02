@@ -26,10 +26,9 @@ const PlantDiagnosis: React.FC = () => {
   const [diagnosis, setDiagnosis] = useState<DiagnosisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isCameraActive, setIsCameraActive] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   // Image validation function
   const validateImage = (file: File): boolean => {
@@ -69,54 +68,16 @@ const PlantDiagnosis: React.FC = () => {
         setSelectedImage(base64Image);
         await analyzePlant(base64Image);
       } catch (error: unknown) {
-        // Log the error if needed, but don't reference the variable directly
         console.error('Image processing error:', error);
         setError('Failed to process image. Please try again.');
       }
     }
   };
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setIsCameraActive(true);
-      }
-    } catch (error: unknown) {
-      // Log the error if needed, but don't reference the variable directly
-      console.error('Camera access error:', error);
-      setError('Camera access denied. Please check permissions.');
-    }
-  };
-
-  const stopCamera = useCallback(() => {
-    if (videoRef.current?.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach((track) => track.stop());
-      setIsCameraActive(false);
-    }
-  }, []);
-
-  const capturePhoto = () => {
-    if (videoRef.current) {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-
-      const context = canvas.getContext('2d');
-      context?.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-
-      const imageDataUrl = canvas.toDataURL('image/jpeg');
-      setSelectedImage(imageDataUrl);
-      stopCamera();
-      analyzePlant(imageDataUrl);
+  const handleTakePhoto = () => {
+    // Trigger native file input for camera on mobile devices
+    if (photoInputRef.current) {
+      photoInputRef.current.click();
     }
   };
 
@@ -203,10 +164,8 @@ const PlantDiagnosis: React.FC = () => {
       setDiagnosis(diagnosis);
 
     } catch (error: unknown) {
-      // Log the error for debugging
       console.error('Diagnosis Error:', error);
       
-      // Set a user-friendly error message
       setError(
         error instanceof Error && error.message.includes('Failed to fetch')
           ? 'Network error. Check your internet connection.'
@@ -245,11 +204,20 @@ const PlantDiagnosis: React.FC = () => {
 
           {!selectedImage && !diagnosis && !isLoading && (
             <div className="space-y-4">
+              {/* Hidden file input for both upload and camera capture */}
               <input
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
                 accept="image/jpeg,image/png"
+                onChange={handleFileUpload}
+              />
+              <input
+                type="file"
+                ref={photoInputRef}
+                className="hidden"
+                accept="image/jpeg,image/png"
+                capture="environment"
                 onChange={handleFileUpload}
               />
               <button
@@ -267,28 +235,11 @@ const PlantDiagnosis: React.FC = () => {
               </div>
 
               <button
-                onClick={startCamera}
+                onClick={handleTakePhoto}
                 className="w-full flex items-center justify-center gap-3 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
               >
                 <Camera className="w-5 h-5" />
                 Take Photo
-              </button>
-            </div>
-          )}
-
-          {isCameraActive && (
-            <div className="relative">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="w-full rounded-lg shadow-md"
-              />
-              <button
-                onClick={capturePhoto}
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white shadow-lg p-3 rounded-full"
-              >
-                <Camera className="w-6 h-6 text-emerald-600" />
               </button>
             </div>
           )}
