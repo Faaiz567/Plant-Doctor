@@ -30,6 +30,7 @@ const PlantDiagnosis: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Image validation function
   const validateImage = (file: File): boolean => {
@@ -69,7 +70,6 @@ const PlantDiagnosis: React.FC = () => {
         setSelectedImage(base64Image);
         await analyzePlant(base64Image);
       } catch (error: unknown) {
-        // Log the error if needed, but don't reference the variable directly
         console.error('Image processing error:', error);
         setError('Failed to process image. Please try again.');
       }
@@ -82,15 +82,16 @@ const PlantDiagnosis: React.FC = () => {
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 },
+          facingMode: 'environment' // Prefer back/rear camera on mobile devices
         },
       });
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.play();
         setIsCameraActive(true);
       }
     } catch (error: unknown) {
-      // Log the error if needed, but don't reference the variable directly
       console.error('Camera access error:', error);
       setError('Camera access denied. Please check permissions.');
     }
@@ -105,17 +106,28 @@ const PlantDiagnosis: React.FC = () => {
   }, []);
 
   const capturePhoto = () => {
-    if (videoRef.current) {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
+    if (videoRef.current && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
 
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      // Draw the current video frame on the canvas
       const context = canvas.getContext('2d');
-      context?.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      context?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+      // Convert canvas to base64 image
       const imageDataUrl = canvas.toDataURL('image/jpeg');
+      
+      // Set the captured image
       setSelectedImage(imageDataUrl);
+      
+      // Stop the camera
       stopCamera();
+      
+      // Analyze the captured plant image
       analyzePlant(imageDataUrl);
     }
   };
@@ -130,8 +142,6 @@ const PlantDiagnosis: React.FC = () => {
       if (!apiKey) {
         throw new Error('API Key is missing. Check your .env.local file.');
       }
-
-      // Remove the base64 prefix if exists
       const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
 
       const response = await fetch(
@@ -203,10 +213,8 @@ const PlantDiagnosis: React.FC = () => {
       setDiagnosis(diagnosis);
 
     } catch (error: unknown) {
-      // Log the error for debugging
       console.error('Diagnosis Error:', error);
       
-      // Set a user-friendly error message
       setError(
         error instanceof Error && error.message.includes('Failed to fetch')
           ? 'Network error. Check your internet connection.'
@@ -225,7 +233,7 @@ const PlantDiagnosis: React.FC = () => {
 
   return (
     <div>
-    <div className="min-h-screen flex items-center justify-center p-4 animate-gradient bg-gradient-to-r from-blue-200 via-teal-200 to-blue-300 bg-[length:200%_200%]">
+    <div className="min-h-screen flex items-center justify-center p-4 animate-gradient bg-gradient-to-r from-cyan-500 via-blue-200 to-teal-400 bg-[length:200%_200%]">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-6 text-center">
           <h1 className="text-3xl font-bold text-white flex items-center justify-center gap-3">
@@ -283,6 +291,10 @@ const PlantDiagnosis: React.FC = () => {
                 autoPlay
                 playsInline
                 className="w-full rounded-lg shadow-md"
+              />
+              <canvas 
+                ref={canvasRef} 
+                className="hidden" 
               />
               <button
                 onClick={capturePhoto}
