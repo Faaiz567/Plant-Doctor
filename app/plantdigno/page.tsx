@@ -86,14 +86,23 @@ const PlantDiagnosis: React.FC = () => {
     setError(null);
 
     try {
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-      if (!apiKey) {
-        throw new Error('API Key is missing. Check your .env.local file.');
-      }
+      // Fallback to a dummy key if environment variable is missing
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
 
       // Remove the base64 prefix if exists
       const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+
+      // Conditional fetch to prevent build errors when API key is not set
+      if (!apiKey) {
+        setDiagnosis({
+          plantName: 'Demo Plant',
+          scientificName: 'Plantus Demonstratus',
+          description: 'This is a demo result since no API key was provided.',
+          disease: 'No actual diagnosis available',
+          diseaseDescription: 'Please set up a valid Gemini API key to enable plant diagnosis.'
+        });
+        return;
+      }
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -171,6 +180,13 @@ const PlantDiagnosis: React.FC = () => {
           ? 'Network error. Check your internet connection.'
           : `Analysis failed: ${String(error)}`
       );
+
+      // Set a default diagnosis in case of error
+      setDiagnosis({
+        plantName: 'Error Plant',
+        description: 'Unable to complete diagnosis due to an error.',
+        scientificName: 'Errorius Botanicus'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -184,97 +200,78 @@ const PlantDiagnosis: React.FC = () => {
 
   return (
     <div>
-    <div className="min-h-screen flex items-center justify-center p-4 animate-gradient bg-gradient-to-r from-blue-200 via-teal-200 to-blue-300 bg-[length:200%_200%]">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-6 text-center">
-          <h1 className="text-3xl font-bold text-white flex items-center justify-center gap-3">
-            <Leaf className="w-10 h-10 text-white/90 animate-bounce" />
-            Plant Doctor
-          </h1>
-          <p className="text-white/80 mt-2">Diagnose your plant&apos;s health instantly</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center p-4 animate-gradient bg-gradient-to-r from-green-400 via-lime-400 to-blue-300 bg-[length:200%_200%]">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div className="bg-gradient-to-r from-emerald-500 to-teal-600 p-6 text-center">
+            <h1 className="text-3xl font-bold text-white flex items-center justify-center gap-3">
+              <Leaf className="w-10 h-10 text-white/90 animate-bounce" />
+              Plant Doctor
+            </h1>
+            <p className="text-white/80 mt-2">Diagnose your plant&apos;s health instantly</p>
+          </div>
 
-        <div className="p-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg flex items-center gap-3 mb-4">
-              <AlertTriangle className="w-6 h-6" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {!selectedImage && !diagnosis && !isLoading && (
-            <div className="space-y-4">
-              {/* Hidden file input for both upload and camera capture */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/jpeg,image/png"
-                onChange={handleFileUpload}
-              />
-              <input
-                type="file"
-                ref={photoInputRef}
-                className="hidden"
-                accept="image/jpeg,image/png"
-                capture="environment"
-                onChange={handleFileUpload}
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-3 py-3 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
-              >
-                <Upload className="w-5 h-5" />
-                Upload Image
-              </button>
-
-              <div className="flex items-center justify-center space-x-4">
-                <div className="h-px bg-gray-300 flex-grow"></div>
-                <span className="text-gray-500">or</span>
-                <div className="h-px bg-gray-300 flex-grow"></div>
+          <div className="p-6">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg flex items-center gap-3 mb-4">
+                <AlertTriangle className="w-6 h-6" />
+                <span>{error}</span>
               </div>
+            )}
 
-              <button
-                onClick={handleTakePhoto}
-                className="w-full flex items-center justify-center gap-3 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
-              >
-                <Camera className="w-5 h-5" />
-                Take Photo
-              </button>
-            </div>
-          )}
+            {!selectedImage && !diagnosis && !isLoading && (
+              <div className="space-y-4">
+                {/* Hidden file input for both upload and camera capture */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/jpeg,image/png"
+                  onChange={handleFileUpload}
+                />
+                <input
+                  type="file"
+                  ref={photoInputRef}
+                  className="hidden"
+                  accept="image/jpeg,image/png"
+                  capture="environment"
+                  onChange={handleFileUpload}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-3 py-3 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
+                >
+                  <Upload className="w-5 h-5" />
+                  Upload Image
+                </button>
 
-          {isLoading && (
-            <div className="text-center py-8">
-              <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mx-auto" />
-              <p className="text-emerald-500 font-medium mt-2">Analyzing image...</p>
-            </div>
-          )}
+                <div className="flex items-center justify-center space-x-4">
+                  <div className="h-px bg-gray-300 flex-grow"></div>
+                  <span className="text-gray-500">or</span>
+                  <div className="h-px bg-gray-300 flex-grow"></div>
+                </div>
 
-          {selectedImage && !diagnosis && !isLoading && (
-            <div className="relative">
-              <Image
-                src={selectedImage}
-                alt="Uploaded Plant"
-                width={400}
-                height={400}
-                className="w-full h-auto rounded-lg shadow-md"
-              />
-              <button
-                onClick={resetAnalysis}
-                className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md"
-              >
-                <XCircle className="w-6 h-6 text-red-500" />
-              </button>
-            </div>
-          )}
+                <button
+                  onClick={handleTakePhoto}
+                  className="w-full flex items-center justify-center gap-3 py-3 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
+                >
+                  <Camera className="w-5 h-5" />
+                  Take Photo
+                </button>
+              </div>
+            )}
 
-          {diagnosis && (
-            <div className="space-y-4">
+            {isLoading && (
+              <div className="text-center py-8">
+                <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mx-auto" />
+                <p className="text-emerald-500 font-medium mt-2">Analyzing image...</p>
+              </div>
+            )}
+
+            {selectedImage && !diagnosis && !isLoading && (
               <div className="relative">
                 <Image
-                  src={selectedImage!}
-                  alt="Diagnosed Plant"
+                  src={selectedImage}
+                  alt="Uploaded Plant"
                   width={400}
                   height={400}
                   className="w-full h-auto rounded-lg shadow-md"
@@ -286,58 +283,77 @@ const PlantDiagnosis: React.FC = () => {
                   <XCircle className="w-6 h-6 text-red-500" />
                 </button>
               </div>
+            )}
 
-              <div className="p-4 bg-gray-100 rounded-lg shadow-md space-y-2">
-                <table className="w-full border-collapse">
-                  <tbody>
-                    <tr className="border-b border-gray-200">
-                      <td className="font-bold text-emerald-600 py-2 pr-4 w-1/3">
-                        <CheckCircle2 className="inline-block w-5 h-5 mr-2" />
-                        Plant Name
-                      </td>
-                      <td className="py-2">{diagnosis.plantName}</td>
-                    </tr>
+            {diagnosis && (
+              <div className="space-y-4">
+                <div className="relative">
+                  <Image
+                    src={selectedImage!}
+                    alt="Diagnosed Plant"
+                    width={400}
+                    height={400}
+                    className="w-full h-auto rounded-lg shadow-md"
+                  />
+                  <button
+                    onClick={resetAnalysis}
+                    className="absolute top-2 right-2 bg-white p-2 rounded-full shadow-md"
+                  >
+                    <XCircle className="w-6 h-6 text-red-500" />
+                  </button>
+                </div>
 
-                    {diagnosis.scientificName && (
+                <div className="p-4 bg-gray-100 rounded-lg shadow-md space-y-2">
+                  <table className="w-full border-collapse">
+                    <tbody>
                       <tr className="border-b border-gray-200">
-                        <td className="font-bold text-gray-600 py-2 pr-4 w-1/3">Scientific Name</td>
-                        <td className="py-2">{diagnosis.scientificName}</td>
-                      </tr>
-                    )}
-
-                    {diagnosis.disease && (
-                      <tr className="border-b border-gray-200">
-                        <td className="font-bold text-red-600 py-2 pr-4 w-1/3">Disease</td>
-                        <td className="py-2">{diagnosis.disease}</td>
-                      </tr>
-                    )}
-
-                    {diagnosis.diseaseDescription && (
-                      <tr>
-                        <td 
-                          colSpan={2} 
-                          className="pt-2 text-gray-600 whitespace-pre-wrap"
-                        >
-                          <strong className="block text-gray-700 mb-1">Disease Description:</strong>
-                          {diagnosis.diseaseDescription}
+                        <td className="font-bold text-emerald-600 py-2 pr-4 w-1/3">
+                          <CheckCircle2 className="inline-block w-5 h-5 mr-2" />
+                          Plant Name
                         </td>
+                        <td className="py-2">{diagnosis.plantName}</td>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
 
-                {diagnosis.description && (
-                  <div className="mt-4">
-                    <p className="text-gray-600 whitespace-pre-wrap">{diagnosis.description}</p>
-                  </div>
-                )}
+                      {diagnosis.scientificName && (
+                        <tr className="border-b border-gray-200">
+                          <td className="font-bold text-gray-600 py-2 pr-4 w-1/3">Scientific Name</td>
+                          <td className="py-2">{diagnosis.scientificName}</td>
+                        </tr>
+                      )}
+
+                      {diagnosis.disease && (
+                        <tr className="border-b border-gray-200">
+                          <td className="font-bold text-red-600 py-2 pr-4 w-1/3">Disease</td>
+                          <td className="py-2">{diagnosis.disease}</td>
+                        </tr>
+                      )}
+
+                      {diagnosis.diseaseDescription && (
+                        <tr>
+                          <td 
+                            colSpan={2} 
+                            className="pt-2 text-gray-600 whitespace-pre-wrap"
+                          >
+                            <strong className="block text-gray-700 mb-1">Disease Description:</strong>
+                            {diagnosis.diseaseDescription}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+
+                  {diagnosis.description && (
+                    <div className="mt-4">
+                      <p className="text-gray-600 whitespace-pre-wrap">{diagnosis.description}</p>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
-    <Footer />
+      <Footer />
     </div>
   );
 };
